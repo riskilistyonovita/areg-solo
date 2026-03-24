@@ -1,0 +1,9 @@
+credentials:
+  usernames:
+    "123456789":
+      name: User 1
+      password: '$2b$12$kyzjQbJIpsDOm39I8kbJQ.Amom59GkChporPg1aTnAdWVfxtBP6mS'
+cookie:
+  expiry_days: 30
+  key: 'a76c04b873d2b23a46f8d18671faaeecd55f1d6da1e8e447ebc9677ef4c036c7'
+  name: 'RS_App'

@@ -1,0 +1,25 @@
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Credentials - JANGAN di-commit!
+service_account.json
+auth_config.yaml
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Streamlit
+.streamlit/
+
+# Data & uploads
+data/
+uploads/
+
+# OS
+.DS_Store
+Thumbs.db
+*.log

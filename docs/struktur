@@ -1,0 +1,50 @@
+AREG-SOLO/
+├── .venv/
+│   ├── etc/
+│   ├── Include/
+│   ├── Lib/
+│   ├── Scripts/
+│   └── share/
+├── .gitignore
+├── pyvenv.cfg
+│
+├── assets/
+│   ├── hermina_solo.jpg
+│   ├── hermina_soloo.jpg
+│   └── logo.png
+│
+├── data/
+│
+├── docs/
+│   └── struktur
+│
+├── modules/
+│   ├── __init__.py
+│   ├── _base_dokumen.py
+│   ├── dashboard.py
+│   ├── dokumen_lainnya.py
+│   ├── elibrary.py
+│   ├── master_data.py
+│   ├── pks.py
+│   ├── ratifikasi.py
+│   └── regulasi.py
+│
+├── scripts/
+│   ├── folder_creator.py
+│   └── rename_folders.py
+│
+├── utils/
+│   ├── __init__.py
+│   ├── auth_manager.py
+│   ├── email_sender.py
+│   └── google_drive_manager.py
+│
+├── app.py
+├── auth_config.yaml
+├── init_folders.py
+├── patch_canvas.py
+├── README.md
+├── requirements.txt
+├── service_account.json
+├── SETUP_WINDOWS.bat
+└── style.css
