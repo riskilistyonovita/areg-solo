@@ -81,22 +81,15 @@ class GoogleDriveManager:
     
     def _initialize(self):
         """Initialize dengan retry logic"""
-    
-        
         for attempt in range(self.MAX_RETRIES):
             try:
-                # Load credentials: coba st.secrets (cloud) lalu file (lokal)
-                 try:
-                    if "gcp_service_account" in st.secrets:
-                        import json as _json
-                        _info = _json.loads(
-                            _json.dumps(dict(st.secrets["gcp_service_account"]))
-                        )
-                        from google.oauth2.service_account import Credentials as _C
-                        self.creds = _C.from_service_account_info(_info, scopes=self.SCOPES)
-                    else:
-                        raise KeyError("kosong")
-                except Exception:
+                # Load credentials dari st.secrets (cloud) atau file (lokal)
+                if "gcp_service_account" in st.secrets:
+                    import json as _json
+                    _info = _json.loads(_json.dumps(dict(st.secrets["gcp_service_account"])))
+                    self.creds = Credentials.from_service_account_info(_info, scopes=self.SCOPES)
+                else:
+                    service_account_file = 'service_account.json'
                     self.creds = Credentials.from_service_account_file(
                         service_account_file,
                         scopes=self.SCOPES
