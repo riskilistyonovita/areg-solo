@@ -86,13 +86,14 @@ class GoogleDriveManager:
         for attempt in range(self.MAX_RETRIES):
             try:
                 # Load credentials: coba st.secrets (cloud) lalu file (lokal)
-                try:
-                    _sec = dict(st.secrets.get("gcp_service_account", {}))
-                    if _sec:
-                        if 'private_key' in _sec:
-                            _sec['private_key'] = _sec['private_key'].replace('\\n', '\n')
+                 try:
+                    if "gcp_service_account" in st.secrets:
+                        import json as _json
+                        _info = _json.loads(
+                            _json.dumps(dict(st.secrets["gcp_service_account"]))
+                        )
                         from google.oauth2.service_account import Credentials as _C
-                        self.creds = _C.from_service_account_info(_sec, scopes=self.SCOPES)
+                        self.creds = _C.from_service_account_info(_info, scopes=self.SCOPES)
                     else:
                         raise KeyError("kosong")
                 except Exception:
