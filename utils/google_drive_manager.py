@@ -187,7 +187,7 @@ class GoogleDriveManager:
     
     # ========== REGULASI FUNCTIONS ==========
     
-    @st.cache_data(ttl=300, show_spinner=False)
+    @st.cache_data(ttl=3600, show_spinner=False)
     def get_all_documents(_self):
         """Get all documents from rekap_database dengan error handling"""
         if not _self.is_initialized() or _self.spreadsheet_regulasi is None:
@@ -225,7 +225,7 @@ class GoogleDriveManager:
                     st.warning(f"âš ï¸ Error getting documents: {str(e)}")
                     return []
     
-    @st.cache_data(ttl=600, show_spinner=False)
+    @st.cache_data(ttl=7200, show_spinner=False)
     def get_master_data(_self, worksheet_name):
         """Get master data dengan error handling"""
         if not _self.is_initialized() or _self.spreadsheet_regulasi is None:
@@ -396,7 +396,7 @@ class GoogleDriveManager:
 
     # ========== MANAGEMEN FUNCTIONS ==========
     
-    @st.cache_data(ttl=600, show_spinner=False)
+    @st.cache_data(ttl=7200, show_spinner=False)
     def update_user_password(self, user_id, new_password):
         """
         Update password user di tb_users berdasarkan user_id.
@@ -475,37 +475,37 @@ class GoogleDriveManager:
                     st.error(f"âŒ Error getting users: {str(e)}")
                     return []
     
-    @st.cache_data(ttl=300, show_spinner=False)
+    @st.cache_data(ttl=3600, show_spinner=False)
     def get_ruang_rawat(_self):
         """Get ruang rawat"""
         return _self._get_data_with_retry('tb_ruang_rawat')
     
-    @st.cache_data(ttl=300, show_spinner=False)
+    @st.cache_data(ttl=3600, show_spinner=False)
     def get_bed(_self):
         """Get bed"""
         return _self._get_data_with_retry('tb_bed')
     
-    @st.cache_data(ttl=300, show_spinner=False)
+    @st.cache_data(ttl=3600, show_spinner=False)
     def get_pasien(_self):
         """Get pasien"""
         return _self._get_data_with_retry('tb_pasien')
     
-    @st.cache_data(ttl=300, show_spinner=False)
+    @st.cache_data(ttl=3600, show_spinner=False)
     def get_igd(_self):
         """Get IGD"""
         return _self._get_data_with_retry('tb_igd')
     
-    @st.cache_data(ttl=300, show_spinner=False)
+    @st.cache_data(ttl=3600, show_spinner=False)
     def get_rujukan(_self):
         """Get rujukan"""
         return _self._get_data_with_retry('tb_rujukan')
     
-    @st.cache_data(ttl=600, show_spinner=False)
+    @st.cache_data(ttl=7200, show_spinner=False)
     def get_dpjp(_self):
         """Get DPJP"""
         return _self._get_data_with_retry('tb_dpjp')
     
-    @st.cache_data(ttl=600, show_spinner=False)
+    @st.cache_data(ttl=7200, show_spinner=False)
     def get_jaminan(_self):
         """Get jaminan"""
         return _self._get_data_with_retry('tb_jaminan')
@@ -906,7 +906,7 @@ class GoogleDriveManager:
 
     # ========== RATIFIKASI ==========
 
-    @st.cache_data(ttl=60, show_spinner=False)
+    @st.cache_data(ttl=1800, show_spinner=False)
     def get_ratifikasi_list(_self):
         """Get semua record dari tb_ratifikasi."""
         if not _self.is_initialized() or _self.spreadsheet_regulasi is None:

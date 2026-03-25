@@ -199,10 +199,7 @@ def show():
             <p>Selamat datang, <b>{nama}</b> &nbsp;·&nbsp; {tgl_str}</p>
         </div>""", unsafe_allow_html=True)
     with col_h2:
-        if auth.has_permission('regulasi', 'edit'):
-            if st.button("&#128640; Upload Dokumen", type="primary", use_container_width=True):
-                st.session_state.selected_menu = 'Upload File'
-                st.rerun()
+        pass
 
     # ===== ALERT BANNER (kadaluarsa) =====
     if n_dekat > 0:
