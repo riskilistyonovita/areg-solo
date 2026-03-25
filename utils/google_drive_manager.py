@@ -83,52 +83,45 @@ class GoogleDriveManager:
         """Initialize dengan retry logic"""
         for attempt in range(self.MAX_RETRIES):
             try:
-                # Load credentials dari st.secrets (cloud) atau file (lokal)
                 if "gcp_service_account" in st.secrets:
-    _sec = st.secrets["gcp_service_account"]
-    _info = {
-        "type": _sec["type"],
-        "project_id": _sec["project_id"],
-        "private_key_id": _sec["private_key_id"],
-        "private_key": _sec["private_key"],
-        "client_email": _sec["client_email"],
-        "client_id": _sec["client_id"],
-        "auth_uri": _sec["auth_uri"],
-        "token_uri": _sec["token_uri"],
-        "auth_provider_x509_cert_url": _sec["auth_provider_x509_cert_url"],
-        "client_x509_cert_url": _sec["client_x509_cert_url"],
-    }
-    self.creds = Credentials.from_service_account_info(_info, scopes=self.SCOPES)
+                    _sec = st.secrets["gcp_service_account"]
+                    _info = {
+                        "type": _sec["type"],
+                        "project_id": _sec["project_id"],
+                        "private_key_id": _sec["private_key_id"],
+                        "private_key": _sec["private_key"],
+                        "client_email": _sec["client_email"],
+                        "client_id": _sec["client_id"],
+                        "auth_uri": _sec["auth_uri"],
+                        "token_uri": _sec["token_uri"],
+                        "auth_provider_x509_cert_url": _sec["auth_provider_x509_cert_url"],
+                        "client_x509_cert_url": _sec["client_x509_cert_url"],
+                    }
+                    self.creds = Credentials.from_service_account_info(_info, scopes=self.SCOPES)
                 else:
                     service_account_file = 'service_account.json'
                     self.creds = Credentials.from_service_account_file(
                         service_account_file,
                         scopes=self.SCOPES
                     )
-                
-                # Initialize Google Sheets
+
                 self.gc = gspread.authorize(self.creds)
-                
-                # Initialize Google Drive
                 self.drive_service = build('drive', 'v3', credentials=self.creds)
-                
-                # Test connection
                 self._test_connection()
-                
                 self.is_ready = True
                 return
-                
+
             except Exception as e:
                 if attempt < self.MAX_RETRIES - 1:
-                    st.warning(f"âš ï¸ Connection attempt {attempt + 1} failed, retrying...")
+                    st.warning(f"\u26a0\ufe0f Connection attempt {attempt + 1} failed, retrying...")
                     time.sleep(self.RETRY_DELAY)
                 else:
-                    st.error(f"âŒ Failed to initialize after {self.MAX_RETRIES} attempts")
+                    st.error(f"\u274c Failed to initialize after {self.MAX_RETRIES} attempts")
                     st.error(f"Error: {str(e)}")
                     self.creds = None
                     self.gc = None
                     self.drive_service = None
-    
+
     def _test_connection(self):
         """Test koneksi dengan retry"""
         for attempt in range(self.MAX_RETRIES):
