@@ -475,6 +475,94 @@ class GoogleDriveManager:
                     st.error(f"âŒ Error getting users: {str(e)}")
                     return []
     
+    @st.cache_data(ttl=7200, show_spinner=False)
+    def get_roles(_self):
+        """Get daftar role dari tb_roles di spreadsheet Managemen."""
+        if not _self.is_initialized() or _self.spreadsheet_managemen is None:
+            return []
+        for attempt in range(_self.MAX_RETRIES):
+            try:
+                sheet = _self.spreadsheet_managemen.worksheet('tb_roles')
+                return sheet.get_all_records()
+            except Exception as e:
+                if attempt < _self.MAX_RETRIES - 1:
+                    time.sleep(_self.RETRY_DELAY)
+                else:
+                    st.warning(f"⚠️ Error getting tb_roles: {str(e)}")
+                    return []
+
+    def add_user(self, user_data):
+        """
+        Tambah user baru ke tb_users.
+        user_data: dict dengan key sesuai header tb_users.
+        Returns True jika berhasil.
+        """
+        if not self.is_initialized() or self.spreadsheet_managemen is None:
+            return False
+        for attempt in range(self.MAX_RETRIES):
+            try:
+                sheet = self.spreadsheet_managemen.worksheet('tb_users')
+                all_values = sheet.get_all_values()
+                if not all_values:
+                    return False
+                headers = all_values[0]
+                from datetime import datetime as _dt
+                now = _dt.now().strftime('%Y-%m-%d %H:%M:%S')
+                row = []
+                for h in headers:
+                    if h in user_data:
+                        row.append(str(user_data[h]))
+                    elif h == 'created_at':
+                        row.append(now)
+                    elif h == 'status':
+                        row.append('aktif')
+                    else:
+                        row.append('')
+                sheet.append_row(row, value_input_option='USER_ENTERED')
+                time.sleep(1)
+                st.cache_data.clear()
+                return True
+            except Exception as e:
+                if attempt < self.MAX_RETRIES - 1:
+                    time.sleep(self.RETRY_DELAY)
+                else:
+                    st.error(f"❌ Error adding user: {str(e)}")
+                    return False
+        return False
+
+    def update_user_field(self, user_id, field, value):
+        """
+        Update satu field user di tb_users berdasarkan user_id.
+        Returns True jika berhasil.
+        """
+        if not self.is_initialized() or self.spreadsheet_managemen is None:
+            return False
+        for attempt in range(self.MAX_RETRIES):
+            try:
+                sheet = self.spreadsheet_managemen.worksheet('tb_users')
+                all_values = sheet.get_all_values()
+                if not all_values or len(all_values) < 2:
+                    return False
+                headers = all_values[0]
+                if 'user_id' not in headers or field not in headers:
+                    return False
+                uid_col   = headers.index('user_id')
+                field_col = headers.index(field)
+                for i, row in enumerate(all_values[1:], start=2):
+                    if len(row) > uid_col and str(row[uid_col]).strip().upper() == str(user_id).strip().upper():
+                        sheet.update_cell(i, field_col + 1, value)
+                        time.sleep(1)
+                        st.cache_data.clear()
+                        return True
+                return False
+            except Exception as e:
+                if attempt < self.MAX_RETRIES - 1:
+                    time.sleep(self.RETRY_DELAY)
+                else:
+                    st.error(f"❌ Error updating user field: {str(e)}")
+                    return False
+        return False
+
     @st.cache_data(ttl=3600, show_spinner=False)
     def get_ruang_rawat(_self):
         """Get ruang rawat"""

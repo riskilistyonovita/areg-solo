@@ -190,47 +190,14 @@ if not auth.is_authenticated():
                 submit = st.form_submit_button("🔐  Masuk", use_container_width=True)
 
             if submit:
-                if not user_id or not password:
-                    st.error("User ID dan Password harus diisi!")
-                else:
-                    users, login_err = None, None
-                    with st.spinner("Memverifikasi..."):
-                        try:
-                            users = dm.get_users()
-                        except Exception as e:
-                            login_err = str(e)
-                    if login_err:
-                        st.error(f"Gagal koneksi: {login_err}")
-                    elif not users:
-                        st.error("❌ Tidak dapat mengakses database users!")
-                    else:
-                        user = next(
-                            (u for u in users
-                             if str(u.get('user_id','')).strip().upper() == user_id.strip().upper()),
-                            None
-                        )
-                        if not user:
-                            st.error(f"❌ User ID **{user_id}** tidak ditemukan!")
-                        elif user.get('status','').lower() != 'aktif':
-                            st.error("❌ Akun tidak aktif. Hubungi IT.")
-                        else:
-                            stored_pw = str(user.get('password','')).strip()
-                            pw_match  = False
-                            try:
-                                import bcrypt
-                                if stored_pw.startswith(('$2b$','$2a$')):
-                                    pw_match = bcrypt.checkpw(password.encode(), stored_pw.encode())
-                                else:
-                                    pw_match = (password == stored_pw)
-                            except Exception:
-                                pw_match = (password == stored_pw)
-
-                            if not pw_match:
-                                st.error("❌ Password salah!")
-                            else:
-                                auth.create_session(user)
-                                st.success("✅ Login berhasil!")
-                                import time; time.sleep(0.4); st.rerun()
+                with st.spinner("Memverifikasi..."):
+                    user, login_err = auth.authenticate(user_id, password)
+                if login_err:
+                    st.error(f"❌ {login_err}")
+                elif user:
+                    auth.create_session(user)
+                    st.success("✅ Login berhasil!")
+                    import time; time.sleep(0.4); st.rerun()
 
             st.markdown(
                 '<div style="text-align:center;color:#cbd5e0;font-size:11px;margin-top:20px">'
@@ -267,6 +234,29 @@ else:
         ("Ratifikasi",      "✍️"),
         ("Master Data",     "⚙️"),
     ]
+
+    # Pemetaan menu → (kunci modul di PERMISSIONS, aksi minimum untuk buka halaman)
+    MENU_PERMISSIONS = {
+        "Dashboard":       ("dashboard",       "view"),
+        "Regulasi":        ("regulasi",        "lihat"),
+        "Perijinan & PKS": ("perijinan_pks",   "lihat"),
+        "e-Library":       ("elibrary",        "lihat"),
+        "Dokumen Lainnya": ("dokumen_lainnya", "lihat"),
+        "Ratifikasi":      ("ratifikasi",      "lihat"),
+        "Master Data":     ("master_data",     "lihat"),
+    }
+
+    # Hanya tampilkan menu yang boleh diakses role ini
+    NAV_VISIBLE = [
+        (lbl, ico) for lbl, ico in NAV
+        if auth.has_permission(*MENU_PERMISSIONS.get(lbl, ("dashboard", "view")))
+    ]
+
+    # Pastikan sel yang tersimpan masih valid untuk role ini
+    visible_labels = [lbl for lbl, _ in NAV_VISIBLE]
+    if sel not in visible_labels:
+        st.session_state.selected_menu = visible_labels[0] if visible_labels else "Dashboard"
+        sel = st.session_state.selected_menu
 
     # ════════════════════════════════════════════════════════════════
     # GLOBAL CSS  —  sidebar native + main area
@@ -490,8 +480,8 @@ else:
             unsafe_allow_html=True
         )
 
-        # Nav items
-        for lbl, ico in NAV:
+        # Nav items — hanya menu yang boleh diakses role ini
+        for lbl, ico in NAV_VISIBLE:
             if st.button(
                 f"{ico}  {lbl}",
                 key=f"nav_{lbl}",
@@ -549,6 +539,16 @@ else:
     }
 
     if sel in MODULE_MAP:
+        # ── Permission guard ────────────────────────────────────────────
+        mod_key, mod_action = MENU_PERMISSIONS.get(sel, (None, None))
+        if mod_key and not auth.has_permission(mod_key, mod_action):
+            st.error(f"⛔ Anda tidak memiliki akses ke menu **{sel}**.")
+            st.info(
+                f"Role **{role}** tidak memiliki hak akses untuk membuka halaman ini. "
+                f"Hubungi Administrator jika merasa ini keliru."
+            )
+            st.stop()
+
         try:
             mod = importlib.import_module(MODULE_MAP[sel])
             if sel == "Regulasi":

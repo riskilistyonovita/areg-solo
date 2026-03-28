@@ -39,7 +39,7 @@ def show():
             if not tgl_k_str or tgl_k_str in ('nan', 'None', ''):
                 continue
             try:
-                for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y'):
+                for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y', '%d-%b-%Y', '%d %b %Y', '%-d-%b-%Y'):
                     try:
                         tgl_k = datetime.strptime(tgl_k_str, fmt).date()
                         break
@@ -107,7 +107,7 @@ def show():
     .alert-banner .alert-link { color: #00a859; font-weight: 600; cursor: pointer; white-space: nowrap; }
 
     /* ── Metric cards ── */
-    .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 1.4rem; }
+    .metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 1.4rem; }
     .metric-card {
         background: white; border-radius: 12px; padding: 20px 22px;
         box-shadow: 0 1px 4px rgba(0,0,0,0.07); border: 1px solid #e8ecf0;
@@ -233,19 +233,15 @@ def show():
             <div class="mc-value">{n_kadaluarsa}</div>
             <div class="mc-sub">{sub_aktif}</div>
         </div>
-        <div class="metric-card purple">
-            <div class="mc-label">Kategori</div>
-            <div class="mc-value">{len(kat_dist)}</div>
-            <div class="mc-sub">Kategori terdaftar</div>
-        </div>
+
     </div>
     """, unsafe_allow_html=True)
 
     # ===== TWO PANELS =====
-    col_left, col_right = st.columns(2)
+    col_kiri, col_kanan = st.columns(2)
 
-    # --- Panel kiri: Dokumen Terbaru ---
-    with col_left:
+    # --- Panel kanan: Dokumen Terbaru ---
+    with col_kanan:
         st.markdown('<div class="panel">', unsafe_allow_html=True)
         st.markdown("""
         <div class="panel-header">
@@ -290,8 +286,8 @@ def show():
             st.markdown(items_html, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- Panel kanan: Distribusi per Kategori ---
-    with col_right:
+    # --- Panel kiri: Distribusi per Kategori ---
+    with col_kiri:
         st.markdown('<div class="panel">', unsafe_allow_html=True)
         st.markdown("""
         <div class="panel-header">

@@ -67,24 +67,34 @@ def show():
     st.title("✍️ Ratifikasi Regulasi")
     st.markdown("---")
 
-    # Tentukan tab yang muncul
-    tabs_def = [("📋 Daftar Proses", _tab_daftar)]
-    if role in ROLES_UPLOAD:
-        tabs_def.append(("📤 Upload Draft", _tab_upload_draft))
-    tabs_def.append(("✅ Proses Approval", _tab_proses_approval))
-    tabs_def.append(("📬 Distribusi", _tab_distribusi))
-    tabs_def.append(("📁 Folder", _tab_folder_manager))
+    # ── Tentukan tab berdasarkan permission ──────────────────────────
+    # Semua yang bisa buka Ratifikasi → Daftar Proses selalu tampil
+    tabs_def = [("📋 Daftar Proses", _tab_daftar, None)]
 
-    tab_labels  = [t[0] for t in tabs_def]
-    tab_funcs   = [t[1] for t in tabs_def]
-    tabs        = st.tabs(tab_labels)
+    # Upload Draft → Tim Regulasi (punya approve_t2 atau distribusi)
+    if auth.has_permission('ratifikasi', 'approve_t2') or        auth.has_permission('ratifikasi', 'distribusi'):
+        tabs_def.append(("📤 Upload Draft", _tab_upload_draft, None))
 
-    for i, func in enumerate(tab_funcs):
+    # Proses Approval → Manajer Bidang (T1) atau Tim Regulasi (T2)
+    if auth.has_permission('ratifikasi', 'approve_t1') or        auth.has_permission('ratifikasi', 'approve_t2'):
+        tabs_def.append(("✅ Proses Approval", _tab_proses_approval, role))
+
+    # Distribusi → punya aksi distribusi
+    if auth.has_permission('ratifikasi', 'distribusi'):
+        tabs_def.append(("📬 Distribusi", _tab_distribusi, None))
+
+    # Folder Manager → hanya Tim Regulasi & Admin/IT (punya distribusi)
+    if auth.has_permission('ratifikasi', 'distribusi'):
+        tabs_def.append(("📁 Folder", _tab_folder_manager, None))
+
+    tab_labels = [t[0] for t in tabs_def]
+    tab_funcs  = [(t[1], t[2]) for t in tabs_def]
+    tabs       = st.tabs(tab_labels)
+
+    for i, (func, extra) in enumerate(tab_funcs):
         with tabs[i]:
-            if func in [_tab_upload_draft, _tab_proses_approval,
-                        _tab_distribusi, _tab_folder_manager]:
-                func(dm, cu, role) if func in [_tab_proses_approval] \
-                    else func(dm, cu)
+            if extra is not None:
+                func(dm, cu, extra)
             else:
                 func(dm, cu)
 
