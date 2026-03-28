@@ -161,6 +161,19 @@ def _tab_daftar(dm, auth, current_user, status_filter=None, tab_key="t1", exclud
     can_edit   = auth.has_permission('regulasi', 'edit')
     can_delete = auth.has_permission('regulasi', 'hapus')
 
+    # ── Tombol Refresh ──────────────────────────────────────────
+    col_refresh, col_info, _ = st.columns([1.2, 3, 4])
+    with col_refresh:
+        if st.button("🔄 Refresh Data", key=f"refresh_reg_{tab_key}", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+    with col_info:
+        st.markdown(
+            "<div style='padding-top:8px;font-size:12px;color:#94a3b8'>"
+            "Klik jika data baru di Sheets belum muncul</div>",
+            unsafe_allow_html=True
+        )
+
     # Load data
     with st.spinner("Memuat dokumen..."):
         docs    = dm.get_all_documents()
@@ -371,7 +384,9 @@ def _render_dokumen_list(df, dm, current_user, kat_map, bid_map, unit_map,
         nama     = str(row.get('nama_regulasi', ''))
         kat_id   = str(row.get('kategori_id', ''))
         kat_nama = kat_map.get(kat_id, kat_id)
-        tgl_t    = str(row.get('tanggal_terbit', ''))
+        _tgl_t_raw = str(row.get('tanggal_terbit', ''))
+        _tgl_t_obj = _parse_date(_tgl_t_raw)
+        tgl_t = _tgl_t_obj.strftime('%d/%m/%Y') if _tgl_t_obj else _tgl_t_raw
         status   = str(row.get('status', '')).lower()
         link     = str(row.get('google_drive_link', ''))
 
@@ -1096,11 +1111,6 @@ def _parse_date(s):
 
 def _get_target_folder(dm, df_kat, df_bid, df_unit, df_sub,
                         kat_id, bid_id, unit_id, sub_id):
-    """
-    Cari / buat folder tujuan upload secara dinamis berdasarkan nama.
-    Hierarki: root → Kategori → Bidang → Unit → Subkategori
-    Jika folder belum ada, otomatis dibuat.
-    """
     def _get_name(df, id_col, id_val, name_col):
         if not id_val or df.empty or id_col not in df.columns:
             return None
@@ -1112,7 +1122,6 @@ def _get_target_folder(dm, df_kat, df_bid, df_unit, df_sub,
     root = dm.DRIVE_FOLDER_ID
     current_parent = root
 
-    # Level 1: Kategori
     kat_name = _get_name(df_kat, 'kategori_id', kat_id, 'nama_kategori')
     if kat_name:
         fid = dm.search_folder(kat_name, current_parent)
@@ -1121,7 +1130,6 @@ def _get_target_folder(dm, df_kat, df_bid, df_unit, df_sub,
         if fid:
             current_parent = fid
 
-    # Level 2: Bidang
     bid_name = _get_name(df_bid, 'bidang_id', bid_id, 'nama_bidang')
     if bid_name:
         fid = dm.search_folder(bid_name, current_parent)
@@ -1130,7 +1138,6 @@ def _get_target_folder(dm, df_kat, df_bid, df_unit, df_sub,
         if fid:
             current_parent = fid
 
-    # Level 3: Unit
     unit_name = _get_name(df_unit, 'unit_id', unit_id, 'nama_unit')
     if unit_name:
         fid = dm.search_folder(unit_name, current_parent)
@@ -1139,7 +1146,6 @@ def _get_target_folder(dm, df_kat, df_bid, df_unit, df_sub,
         if fid:
             current_parent = fid
 
-    # Level 4: Subkategori
     sub_name = _get_name(df_sub, 'subkategori_id', sub_id, 'nama_subkategori')
     if sub_name:
         fid = dm.search_folder(sub_name, current_parent)
@@ -1180,14 +1186,9 @@ def _tab_import_drive(dm, current_user):
     kat_map  = _build_map(df_kat,  'kategori_id', 'nama_kategori')
     bid_map  = _build_map(df_bid,  'bidang_id',   'nama_bidang')
 
-    # --------------------------------------------------------
-    # Folder map: nama folder Drive -> (kategori_id, bidang_id)
-    # --------------------------------------------------------
     FOLDER_KAT_MAP = {
-        # Regulasi
         dm.DRIVE_FOLDER_ID: ("", ""),
     }
-    # Build dari master data jika ada folder_id di sheet
     if not df_kat.empty and 'folder_id' in df_kat.columns:
         for _, row in df_kat.iterrows():
             fid = str(row.get('folder_id','')).strip()
@@ -1203,7 +1204,6 @@ def _tab_import_drive(dm, current_user):
             if fid and kid:
                 FOLDER_KAT_MAP[fid] = (kid, bid)
 
-    # Daftar folder yang bisa discan
     ALL_FOLDERS = {
         "Semua Folder Sekaligus": "__ALL__",
         "--- Regulasi ---": None,
@@ -1235,7 +1235,6 @@ def _tab_import_drive(dm, current_user):
     st.markdown("---")
     st.markdown("#### Langkah 1 — Pilih Folder yang Akan Discan")
 
-    # Filter hanya pilihan yang punya value (bukan separator)
     valid_opts = [k for k, v in ALL_FOLDERS.items() if v is not None]
     sel_label  = st.selectbox("Pilih folder", valid_opts, key="import_folder_sel")
     sel_val    = ALL_FOLDERS.get(sel_label, "")
@@ -1248,33 +1247,25 @@ def _tab_import_drive(dm, current_user):
             key="import_custom_input"
         )
 
-    # ============================================================
-    # SUB-FOLDER SELECTOR (NEW FEATURE!)
-    # ============================================================
-    
-    # Initialize session state untuk subfolders
     if 'subfolders' not in st.session_state:
         st.session_state.subfolders = []
     if 'show_subfolder_selector' not in st.session_state:
         st.session_state.show_subfolder_selector = False
     if 'selected_subfolder_ids' not in st.session_state:
         st.session_state.selected_subfolder_ids = []
-    
-    # Tentukan folder_id untuk detect sub-folder
+
     detect_folder_id = None
     if sel_val == "__CUSTOM__" and custom_input:
         detect_folder_id = _extract_folder_id(custom_input)
     elif sel_val and sel_val not in ("__ALL__", "__CUSTOM__"):
         detect_folder_id = sel_val
-    
-    # Button: Detect Sub-folders
+
     if detect_folder_id:
         col1, col2 = st.columns([2, 1])
         with col1:
             if st.button("🔍 Detect Sub-folder", key="detect_subfolder_btn"):
                 with st.spinner("Mencari sub-folder..."):
                     subfolders = _scan_subfolders(dm, detect_folder_id)
-                    
                     if subfolders:
                         st.session_state.subfolders = subfolders
                         st.session_state.show_subfolder_selector = True
@@ -1283,7 +1274,6 @@ def _tab_import_drive(dm, current_user):
                     else:
                         st.info("ℹ️ Tidak ada sub-folder, atau folder ini berisi file langsung.")
                         st.session_state.show_subfolder_selector = False
-        
         with col2:
             if st.session_state.show_subfolder_selector:
                 if st.button("❌ Reset", key="reset_subfolder"):
@@ -1291,32 +1281,21 @@ def _tab_import_drive(dm, current_user):
                     st.session_state.subfolders = []
                     st.session_state.selected_subfolder_ids = []
                     st.rerun()
-    
-    # ============================================================
-    # SUB-FOLDER SELECTOR UI
-    # ============================================================
-    
+
     if st.session_state.show_subfolder_selector and st.session_state.subfolders:
         st.markdown("---")
         st.markdown("#### 📂 Pilih Sub-folder yang Akan Di-scan")
-        
         subfolders = st.session_state.subfolders
-        
-        # Select All checkbox
         col_all, col_info = st.columns([1, 3])
         with col_all:
             select_all = st.checkbox("✅ Pilih Semua", value=True, key="subfolder_select_all")
         with col_info:
             total_files = sum(f['file_count'] for f in subfolders)
             st.info(f"📊 Total: {len(subfolders)} sub-folder, {total_files} file")
-        
         st.markdown("")
-        
-        # Checkbox untuk setiap subfolder (2 kolom layout)
         selected_ids = []
         num_cols = 2
         cols = st.columns(num_cols)
-        
         for i, subfolder in enumerate(subfolders):
             col_idx = i % num_cols
             with cols[col_idx]:
@@ -1327,9 +1306,7 @@ def _tab_import_drive(dm, current_user):
                 )
                 if checked:
                     selected_ids.append(subfolder['id'])
-        
         st.session_state.selected_subfolder_ids = selected_ids
-        
         st.markdown("---")
         if selected_ids:
             selected_count = len(selected_ids)
@@ -1338,48 +1315,33 @@ def _tab_import_drive(dm, current_user):
         else:
             st.warning("⚠️ Pilih minimal 1 sub-folder untuk di-scan!")
 
-    # ============================================================
-    # SCAN FILES
-    # ============================================================
-    
     include_sub = st.checkbox("Scan subfolder juga (rekursif)", value=False, key="import_recursive")
-    
-    # Dynamic button label
+
     scan_button_label = "🔍 Scan File di Folder"
     if st.session_state.show_subfolder_selector and st.session_state.selected_subfolder_ids:
         num_selected = len(st.session_state.selected_subfolder_ids)
         scan_button_label = f"🔍 Scan {num_selected} Sub-folder yang Dipilih"
 
-    # Tombol scan
     if st.button(scan_button_label, type="primary", key="btn_scan_drive"):
         st.session_state['import_files'] = None
         st.session_state['import_scan_meta'] = {}
-
-        # Determine folders to scan
         folders_to_scan = []
         folder_labels = {}
-        
-        # Case 1: Sub-folder selector active
+
         if st.session_state.show_subfolder_selector and st.session_state.selected_subfolder_ids:
             for subfolder_id in st.session_state.selected_subfolder_ids:
                 folders_to_scan.append(subfolder_id)
-                # Find folder name
                 for sf in st.session_state.subfolders:
                     if sf['id'] == subfolder_id:
                         folder_labels[subfolder_id] = sf['name']
                         break
-        
-        # Case 2: Scan all folders
         elif sel_val == "__ALL__":
             folder_targets = {k: v for k, v in ALL_FOLDERS.items()
                               if v and v not in ("__ALL__", "__CUSTOM__")
                               and not k.startswith("---")}
-            
             for fname, fid in folder_targets.items():
                 folders_to_scan.append(fid)
                 folder_labels[fid] = fname
-        
-        # Case 3: Custom folder
         elif sel_val == "__CUSTOM__":
             fid = _extract_folder_id(custom_input)
             if not fid:
@@ -1387,43 +1349,34 @@ def _tab_import_drive(dm, current_user):
                 return
             folders_to_scan.append(fid)
             folder_labels[fid] = "Custom"
-        
-        # Case 4: Single folder selection
         else:
             fid = sel_val
             folders_to_scan.append(fid)
             folder_labels[fid] = sel_label
-        
-        # Scan files dari folder-folder yang dipilih
+
         if not folders_to_scan:
             st.error("❌ Tidak ada folder yang akan di-scan!")
             return
-        
+
         all_files = []
         progress_bar = st.progress(0)
-        
+
         for idx, folder_id in enumerate(folders_to_scan):
             folder_name = folder_labels.get(folder_id, "Folder")
-            
             with st.spinner(f"Scanning {folder_name}..."):
                 files = _scan_drive_folder(dm, folder_id, recursive=include_sub)
                 kid, bid = FOLDER_KAT_MAP.get(folder_id, ("", ""))
-                
-                # Tag files dengan folder info
                 for f in files:
                     f['_kat_id'] = kid
                     f['_bid_id'] = bid
                     f['_folder_label'] = folder_name
                     f['_folder_id'] = folder_id
-                
                 all_files.extend(files)
-            
             progress_bar.progress((idx + 1) / len(folders_to_scan))
-        
+
         progress_bar.empty()
         st.session_state['import_files'] = all_files
 
-    # ---- Tampilkan hasil scan ----
     files = st.session_state.get('import_files')
     if files is None:
         return
@@ -1431,7 +1384,6 @@ def _tab_import_drive(dm, current_user):
         st.warning("Tidak ada file ditemukan.")
         return
 
-    # Cek yang sudah terdaftar (berdasarkan Drive ID DAN Nama File)
     existing_docs = dm.get_all_documents() or []
     registered_ids = set()
     registered_names = set()
@@ -1440,19 +1392,16 @@ def _tab_import_drive(dm, current_user):
         if 'google_drive_id' in df_ex.columns:
             registered_ids = set(df_ex['google_drive_id'].astype(str).str.strip())
         if 'nama_regulasi' in df_ex.columns:
-            # Normalize nama: lowercase, strip, hilangkan ekstensi
             registered_names = set(
                 str(n).lower().strip().replace('.pdf','').replace('.docx','').replace('.xlsx','')
                 for n in df_ex['nama_regulasi'] if pd.notna(n)
             )
 
-    # File dianggap sudah terdaftar jika Drive ID ATAU Nama File match
     new_files  = []
     done_files = []
     for f in files:
         file_id = f['id']
         file_name = str(f.get('name', '')).lower().strip().replace('.pdf','').replace('.docx','').replace('.xlsx','')
-        
         if file_id in registered_ids:
             done_files.append(f)
             f['_duplicate_reason'] = 'Drive ID sudah terdaftar'
@@ -1465,8 +1414,7 @@ def _tab_import_drive(dm, current_user):
     st.markdown(f"**Ditemukan {len(files)} file** — "
                 f":green[{len(new_files)} belum terdaftar] | "
                 f":orange[{len(done_files)} sudah terdaftar]")
-    
-    # Tampilkan file yang sudah terdaftar (jika ada)
+
     if done_files:
         with st.expander(f"🟠 File yang Sudah Terdaftar ({len(done_files)} file)", expanded=False):
             st.info("File-file ini **tidak akan didaftarkan ulang** untuk menghindari duplikasi.")
@@ -1474,11 +1422,10 @@ def _tab_import_drive(dm, current_user):
                 fname = f.get('name', '')
                 reason = f.get('_duplicate_reason', 'Sudah terdaftar')
                 st.markdown(f"- **{fname}** — _{reason}_")
-    
+
     st.markdown("---")
     st.markdown("#### Langkah 2 — Pilih Klasifikasi & File")
 
-    # Grupkan per folder_label untuk tampilan
     from collections import defaultdict
     groups = defaultdict(list)
     for f in new_files:
@@ -1489,30 +1436,19 @@ def _tab_import_drive(dm, current_user):
 
     for grp_label, grp_files in groups.items():
         with st.expander(f"📂 {grp_label} ({len(grp_files)} file)", expanded=True):
-            # Klasifikasi per grup
             auto_kat = grp_files[0].get('_kat_id', '') if grp_files else ''
             auto_bid = grp_files[0].get('_bid_id', '') if grp_files else ''
-
             g_key = grp_label.replace(" ", "_").replace("/","_")
             c1, c2, c3, c4 = st.columns(4)
-
-            # Default ke auto-detected
-            kat_keys  = list(kat_opts.keys())
-            kat_vals  = list(kat_opts.values())
-            
-            # Filter out empty options
             valid_kat_opts = {k: v for k, v in kat_opts.items() if k and v}
             if not valid_kat_opts:
-                st.error("❌ Tidak ada kategori tersedia. Tambahkan kategori di Master Data terlebih dahulu.")
+                st.error("❌ Tidak ada kategori tersedia.")
                 return
-            
             kat_keys = list(valid_kat_opts.keys())
             kat_vals = list(valid_kat_opts.values())
-            
             def_kat_i = kat_vals.index(auto_kat) if auto_kat in kat_vals else 0
             sel_kat_n = c1.selectbox("Kategori *", kat_keys, index=def_kat_i, key=f"gkat_{g_key}")
             sel_kat_id = valid_kat_opts.get(sel_kat_n, '')
-
             df_bid_f = df_bid[df_bid['kategori_id'] == sel_kat_id] \
                        if sel_kat_id and 'kategori_id' in df_bid.columns else df_bid
             bid_opts = {"-- Tidak Ada --": ""}
@@ -1522,23 +1458,16 @@ def _tab_import_drive(dm, current_user):
             def_bid_i = bid_vals.index(auto_bid) if auto_bid in bid_vals else 0
             sel_bid_n  = c2.selectbox("Bidang", bid_keys, index=def_bid_i, key=f"gbid_{g_key}")
             sel_bid_id = bid_opts.get(sel_bid_n, '')
-
             df_unit_f = df_unit[df_unit['bidang_id'] == sel_bid_id] \
                         if sel_bid_id and 'bidang_id' in df_unit.columns else pd.DataFrame()
             unit_opts = {"-- Tidak Ada --": ""}
             unit_opts.update(_build_select_opts(df_unit_f, 'nama_unit', 'unit_id'))
             sel_unit_n  = c3.selectbox("Unit", list(unit_opts.keys()), key=f"gunit_{g_key}")
             sel_unit_id = unit_opts.get(sel_unit_n, '')
-
             tgl_grp = c4.date_input("Tgl Terbit", value=date.today(), key=f"gtgl_{g_key}")
-
             st.markdown("")
-
-            # Checkbox select all
             col_all, _ = st.columns([1, 8])
             select_all = col_all.checkbox("Pilih Semua", value=True, key=f"gall_{g_key}")
-
-            # Daftar file
             for i, f in enumerate(grp_files):
                 fname = f.get('name', '')
                 flink = f.get('webViewLink', '')
@@ -1563,16 +1492,10 @@ def _tab_import_drive(dm, current_user):
     if not selected_files:
         st.info("Pilih minimal 1 file.")
         return
-    
-    # Validasi: Pastikan semua file punya kategori_id
+
     files_no_kat = [f for f in selected_files if not f.get('kat_id')]
     if files_no_kat:
         st.error(f"❌ **{len(files_no_kat)} file belum memiliki kategori!**")
-        st.warning("Pastikan Anda sudah memilih kategori dari dropdown untuk semua file.")
-        with st.expander("🔍 File yang belum punya kategori"):
-            for f in files_no_kat:
-                st.write(f"- {f['name']}")
-        st.info("💡 **Cara fix:** Pilih kategori dari dropdown di atas, lalu checklist ulang file-nya.")
         return
 
     if st.button(f"Daftarkan {len(selected_files)} File ke Database",
@@ -1580,7 +1503,6 @@ def _tab_import_drive(dm, current_user):
         progress = st.progress(0)
         results  = []
         total    = len(selected_files)
-
         for i, f in enumerate(selected_files):
             nama_bersih = _clean_filename(f['name'])
             data = {
@@ -1597,18 +1519,6 @@ def _tab_import_drive(dm, current_user):
                 'status':             'Aktif',
                 'created_by':         current_user.get('user_id', '') if current_user else '',
             }
-            
-            # Debug: Log data untuk file pertama
-            if i == 0:
-                with st.expander("🔍 Debug: Data file pertama yang akan dikirim", expanded=False):
-                    st.json({
-                        'nama_regulasi': data['nama_regulasi'],
-                        'kategori_id': data['kategori_id'],
-                        'bidang_id': data['bidang_id'],
-                        'unit_id': data['unit_id'],
-                        'status': data['status']
-                    })
-            
             ok = dm.log_to_sheets(data)
             results.append({'Nama File': f['name'], 'Status': 'OK' if ok else 'GAGAL'})
             progress.progress((i + 1) / total)
@@ -1625,32 +1535,23 @@ def _tab_import_drive(dm, current_user):
 
 
 def _extract_folder_id(text):
-    """Ekstrak folder ID dari link Drive atau ID langsung."""
     if not text or not text.strip():
         return None
     text = text.strip()
-    # Link format: .../folders/ID?... atau .../folders/ID
     if 'drive.google.com' in text:
         import re
         match = re.search(r'/folders/([a-zA-Z0-9_-]+)', text)
         if match:
             return match.group(1)
         return None
-    # Anggap langsung ID jika tidak ada spasi dan panjang wajar
     if ' ' not in text and len(text) > 10:
         return text
     return None
 
 
 def _scan_drive_folder(dm, folder_id, recursive=False):
-    """
-    Scan file di folder Google Drive.
-    Support My Drive dan Shared Drive.
-    Returns list of dicts: {id, name, webViewLink, mimeType}
-    """
     if not dm.is_initialized():
         return []
-
     files = []
     try:
         query = (
@@ -1658,8 +1559,6 @@ def _scan_drive_folder(dm, folder_id, recursive=False):
             f"and mimeType != 'application/vnd.google-apps.folder' "
             f"and trashed = false"
         )
-
-        # Params untuk support Shared Drive
         list_params = dict(
             q=query,
             fields="nextPageToken, files(id, name, webViewLink, mimeType, parents)",
@@ -1668,8 +1567,6 @@ def _scan_drive_folder(dm, folder_id, recursive=False):
             corpora="allDrives",
             pageSize=500,
         )
-
-        # Pagination - ambil semua halaman
         while True:
             result = dm.drive_service.files().list(**list_params).execute()
             files.extend(result.get('files', []))
@@ -1677,8 +1574,6 @@ def _scan_drive_folder(dm, folder_id, recursive=False):
             if not next_token:
                 break
             list_params['pageToken'] = next_token
-
-        # Jika rekursif, scan subfolder
         if recursive:
             sub_query = (
                 f"'{folder_id}' in parents "
@@ -1695,39 +1590,26 @@ def _scan_drive_folder(dm, folder_id, recursive=False):
             for subfolder in sub_result.get('files', []):
                 sub_files = _scan_drive_folder(dm, subfolder['id'], recursive=True)
                 files.extend(sub_files)
-
     except Exception as e:
         st.error(f"Error scan folder {folder_id}: {str(e)}")
-
     return files
 
 
 def _clean_filename(filename):
-    """Bersihkan nama file: hilangkan ekstensi."""
     import os
     name, _ = os.path.splitext(filename)
     return name
 
 
-# ============================================================
-# SUB-FOLDER SELECTOR FUNCTIONS (NEW!)
-# ============================================================
-
 def _count_files_in_folder(dm, folder_id):
-    """
-    Count jumlah file (bukan folder) dalam folder.
-    Returns: int (jumlah file)
-    """
     if not dm.is_initialized():
         return 0
-    
     try:
         query = (
             f"'{folder_id}' in parents "
             f"and mimeType != 'application/vnd.google-apps.folder' "
             f"and trashed = false"
         )
-        
         result = dm.drive_service.files().list(
             q=query,
             fields="files(id)",
@@ -1736,27 +1618,20 @@ def _count_files_in_folder(dm, folder_id):
             corpora="allDrives",
             pageSize=1000
         ).execute()
-        
         return len(result.get('files', []))
-    except Exception as e:
+    except Exception:
         return 0
 
 
 def _scan_subfolders(dm, parent_folder_id):
-    """
-    Scan sub-folder dalam parent folder.
-    Returns: List of {id, name, file_count}
-    """
     if not dm.is_initialized():
         return []
-    
     try:
         query = (
             f"'{parent_folder_id}' in parents "
             f"and mimeType = 'application/vnd.google-apps.folder' "
             f"and trashed = false"
         )
-        
         result = dm.drive_service.files().list(
             q=query,
             fields="files(id, name)",
@@ -1765,23 +1640,17 @@ def _scan_subfolders(dm, parent_folder_id):
             corpora="allDrives",
             pageSize=100
         ).execute()
-        
         subfolders = []
         for folder in result.get('files', []):
-            # Count files in each subfolder
             file_count = _count_files_in_folder(dm, folder['id'])
-            
-            if file_count > 0:  # Hanya tampilkan folder yang ada file-nya
+            if file_count > 0:
                 subfolders.append({
                     'id': folder['id'],
                     'name': folder['name'],
                     'file_count': file_count
                 })
-        
-        # Sort by name
         subfolders.sort(key=lambda x: x['name'])
         return subfolders
-        
     except Exception as e:
         st.error(f"❌ Error scanning subfolders: {str(e)}")
         return []
