@@ -767,9 +767,13 @@ def _render_kadaluarsa_table(df, dm, current_user, kat_map, bid_map, unit_map,
         nama     = str(row.get('nama_regulasi', ''))
         kat_id   = str(row.get('kategori_id', ''))
         kat_nama = kat_map.get(kat_id, kat_id)
-        tgl_t    = str(row.get('tanggal_terbit', ''))
-        tgl_k_str= str(row.get('tanggal_kadaluarsa', ''))
-        tgl_k    = _parse_date(tgl_k_str)
+        tgl_t_raw = str(row.get('tanggal_terbit', ''))
+        tgl_k_str = str(row.get('tanggal_kadaluarsa', ''))
+        tgl_k     = _parse_date(tgl_k_str)
+        # Normalisasi display ke dd/mm/yyyy
+        _tgl_t_obj = _parse_date(tgl_t_raw)
+        tgl_t = _tgl_t_obj.strftime('%d/%m/%Y') if _tgl_t_obj else tgl_t_raw
+        tgl_k_display = tgl_k.strftime('%d/%m/%Y') if tgl_k else tgl_k_str
         link     = str(row.get('google_drive_link', ''))
 
         # Hitung sisa / lewat
@@ -792,7 +796,7 @@ def _render_kadaluarsa_table(df, dm, current_user, kat_map, bid_map, unit_map,
         c[0].markdown(f'<div style="font-size:13px;line-height:1.3">{nama}</div>', unsafe_allow_html=True)
         c[1].markdown(f'<small>{kat_nama}</small>', unsafe_allow_html=True)
         c[2].markdown(f'<small>{tgl_t}</small>', unsafe_allow_html=True)
-        c[3].markdown(f'<small>{tgl_k_str}</small>', unsafe_allow_html=True)
+        c[3].markdown(f'<small>{tgl_k_display}</small>', unsafe_allow_html=True)
         c[4].markdown(sisa_html, unsafe_allow_html=True)
 
         with c[5]:
