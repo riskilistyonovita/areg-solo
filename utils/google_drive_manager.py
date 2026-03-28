@@ -477,7 +477,7 @@ class GoogleDriveManager:
     
     @st.cache_data(ttl=7200, show_spinner=False)
     def get_roles(_self):
-        """Get daftar role dari tb_roles di spreadsheet Managemen."""
+        """Get daftar role dari tb_roles."""
         if not _self.is_initialized() or _self.spreadsheet_managemen is None:
             return []
         for attempt in range(_self.MAX_RETRIES):
@@ -488,15 +488,11 @@ class GoogleDriveManager:
                 if attempt < _self.MAX_RETRIES - 1:
                     time.sleep(_self.RETRY_DELAY)
                 else:
-                    st.warning(f"⚠️ Error getting tb_roles: {str(e)}")
+                    st.warning(f"\u26a0\ufe0f Error getting tb_roles: {str(e)}")
                     return []
 
     def add_user(self, user_data):
-        """
-        Tambah user baru ke tb_users.
-        user_data: dict dengan key sesuai header tb_users.
-        Returns True jika berhasil.
-        """
+        """Tambah user baru ke tb_users."""
         if not self.is_initialized() or self.spreadsheet_managemen is None:
             return False
         for attempt in range(self.MAX_RETRIES):
@@ -526,15 +522,12 @@ class GoogleDriveManager:
                 if attempt < self.MAX_RETRIES - 1:
                     time.sleep(self.RETRY_DELAY)
                 else:
-                    st.error(f"❌ Error adding user: {str(e)}")
+                    st.error(f"\u274c Error adding user: {str(e)}")
                     return False
         return False
 
     def update_user_field(self, user_id, field, value):
-        """
-        Update satu field user di tb_users berdasarkan user_id.
-        Returns True jika berhasil.
-        """
+        """Update satu field user di tb_users."""
         if not self.is_initialized() or self.spreadsheet_managemen is None:
             return False
         for attempt in range(self.MAX_RETRIES):
@@ -559,7 +552,7 @@ class GoogleDriveManager:
                 if attempt < self.MAX_RETRIES - 1:
                     time.sleep(self.RETRY_DELAY)
                 else:
-                    st.error(f"❌ Error updating user field: {str(e)}")
+                    st.error(f"\u274c Error updating user field: {str(e)}")
                     return False
         return False
 

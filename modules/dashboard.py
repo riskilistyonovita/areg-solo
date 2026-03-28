@@ -39,7 +39,7 @@ def show():
             if not tgl_k_str or tgl_k_str in ('nan', 'None', ''):
                 continue
             try:
-                for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y', '%d-%b-%Y', '%d %b %Y', '%-d-%b-%Y'):
+                for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y', '%d-%b-%Y', '%d %b %Y'):
                     try:
                         tgl_k = datetime.strptime(tgl_k_str, fmt).date()
                         break

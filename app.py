@@ -235,7 +235,6 @@ else:
         ("Master Data",     "⚙️"),
     ]
 
-    # Pemetaan menu → (kunci modul di PERMISSIONS, aksi minimum untuk buka halaman)
     MENU_PERMISSIONS = {
         "Dashboard":       ("dashboard",       "view"),
         "Regulasi":        ("regulasi",        "lihat"),
@@ -246,13 +245,11 @@ else:
         "Master Data":     ("master_data",     "lihat"),
     }
 
-    # Hanya tampilkan menu yang boleh diakses role ini
     NAV_VISIBLE = [
         (lbl, ico) for lbl, ico in NAV
         if auth.has_permission(*MENU_PERMISSIONS.get(lbl, ("dashboard", "view")))
     ]
 
-    # Pastikan sel yang tersimpan masih valid untuk role ini
     visible_labels = [lbl for lbl, _ in NAV_VISIBLE]
     if sel not in visible_labels:
         st.session_state.selected_menu = visible_labels[0] if visible_labels else "Dashboard"
@@ -480,7 +477,7 @@ else:
             unsafe_allow_html=True
         )
 
-        # Nav items — hanya menu yang boleh diakses role ini
+        # Nav items
         for lbl, ico in NAV_VISIBLE:
             if st.button(
                 f"{ico}  {lbl}",
@@ -539,14 +536,10 @@ else:
     }
 
     if sel in MODULE_MAP:
-        # ── Permission guard ────────────────────────────────────────────
         mod_key, mod_action = MENU_PERMISSIONS.get(sel, (None, None))
         if mod_key and not auth.has_permission(mod_key, mod_action):
             st.error(f"⛔ Anda tidak memiliki akses ke menu **{sel}**.")
-            st.info(
-                f"Role **{role}** tidak memiliki hak akses untuk membuka halaman ini. "
-                f"Hubungi Administrator jika merasa ini keliru."
-            )
+            st.info(f"Role **{role}** tidak memiliki hak akses untuk membuka halaman ini.")
             st.stop()
 
         try:

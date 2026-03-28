@@ -1,26 +1,6 @@
 # utils/auth_manager.py
 """
 Authentication Manager untuk A-REG SOLO
-Handles login/logout dengan Google Sheets tb_users
-
-Role hierarchy:
-  DIREKSI      : Direktur, Wakil Direktur
-  TIM REGULASI : Ketua Tim Regulasi, Sekretaris Tim Regulasi,
-                 Mutu dan PPI, Sekretaris
-  MANAJEMEN    : Manajer Bidang (alias: Managemen)
-  UNIT         : Kepala Unit
-  IT/ADMIN     : Admin, IT
-  STAF         : semua role operasional (lihat saja)
-
-Multi-role: kolom 'role' di tb_users bisa diisi lebih dari satu,
-dipisah koma — mis. "Manajer Bidang,Ketua Tim Regulasi".
-Permission yang diterima = gabungan (union) semua role.
-
-Action khusus ratifikasi:
-  approve_t1  → Manajer Bidang
-  approve_t2  → Wakil Direktur, Ketua Tim Regulasi, Sekretaris Tim Regulasi
-  distribusi  → Ketua Tim Regulasi, Sekretaris Tim Regulasi,
-                Mutu dan PPI, Sekretaris, Admin, IT
 """
 
 import streamlit as st
@@ -39,184 +19,130 @@ class AuthManager:
         self.dm = drive_manager
 
         self.PERMISSIONS = {
-
-            # ── DIREKSI ──────────────────────────────────────────────────
+            # DIREKSI
             'Direktur': {
-                'dashboard':       ['view'],
-                'regulasi':        ['lihat'],
-                'perijinan_pks':   ['lihat'],
-                'elibrary':        ['lihat'],
-                'dokumen_lainnya': ['lihat'],
-                'ratifikasi':      ['lihat'],
-                'master_data':     [],
+                'dashboard': ['view'], 'regulasi': ['lihat'],
+                'perijinan_pks': ['lihat'], 'elibrary': ['lihat'],
+                'dokumen_lainnya': ['lihat'], 'ratifikasi': ['lihat'],
+                'master_data': [],
             },
             'Wakil Direktur': {
-                'dashboard':       ['view'],
-                'regulasi':        ['lihat'],
-                'perijinan_pks':   ['lihat'],
-                'elibrary':        ['lihat'],
-                'dokumen_lainnya': ['lihat'],
-                'ratifikasi':      ['lihat', 'approve_t2'],
-                'master_data':     [],
+                'dashboard': ['view'], 'regulasi': ['lihat'],
+                'perijinan_pks': ['lihat'], 'elibrary': ['lihat'],
+                'dokumen_lainnya': ['lihat'], 'ratifikasi': ['lihat', 'approve_t2'],
+                'master_data': [],
             },
-
-            # ── TIM REGULASI ─────────────────────────────────────────────
+            # TIM REGULASI
             'Ketua Tim Regulasi': {
-                'dashboard':       ['view'],
-                'regulasi':        ['lihat', 'edit', 'hapus'],
-                'perijinan_pks':   ['lihat', 'edit', 'hapus'],
-                'elibrary':        ['lihat', 'edit', 'hapus'],
+                'dashboard': ['view'], 'regulasi': ['lihat', 'edit', 'hapus'],
+                'perijinan_pks': ['lihat', 'edit', 'hapus'], 'elibrary': ['lihat', 'edit', 'hapus'],
                 'dokumen_lainnya': ['lihat', 'edit', 'hapus'],
-                'ratifikasi':      ['lihat', 'approve_t2', 'distribusi'],
-                'master_data':     [],
+                'ratifikasi': ['lihat', 'approve_t2', 'distribusi'],
+                'master_data': [],
             },
             'Sekretaris Tim Regulasi': {
-                'dashboard':       ['view'],
-                'regulasi':        ['lihat', 'edit', 'hapus'],
-                'perijinan_pks':   ['lihat', 'edit', 'hapus'],
-                'elibrary':        ['lihat', 'edit', 'hapus'],
+                'dashboard': ['view'], 'regulasi': ['lihat', 'edit', 'hapus'],
+                'perijinan_pks': ['lihat', 'edit', 'hapus'], 'elibrary': ['lihat', 'edit', 'hapus'],
                 'dokumen_lainnya': ['lihat', 'edit', 'hapus'],
-                'ratifikasi':      ['lihat', 'approve_t2', 'distribusi'],
-                'master_data':     ['lihat', 'tambah', 'edit', 'hapus'],
+                'ratifikasi': ['lihat', 'approve_t2', 'distribusi'],
+                'master_data': ['lihat', 'tambah', 'edit', 'hapus'],
             },
             'Mutu dan PPI': {
-                'dashboard':       ['view'],
-                'regulasi':        ['lihat', 'edit', 'hapus'],
-                'perijinan_pks':   ['lihat', 'edit', 'hapus'],
-                'elibrary':        ['lihat', 'edit', 'hapus'],
+                'dashboard': ['view'], 'regulasi': ['lihat', 'edit', 'hapus'],
+                'perijinan_pks': ['lihat', 'edit', 'hapus'], 'elibrary': ['lihat', 'edit', 'hapus'],
                 'dokumen_lainnya': ['lihat', 'edit', 'hapus'],
-                'ratifikasi':      ['lihat', 'distribusi'],
-                'master_data':     [],
+                'ratifikasi': ['lihat', 'distribusi'], 'master_data': [],
             },
             'Sekretaris': {
-                'dashboard':       ['view'],
-                'regulasi':        ['lihat', 'edit', 'hapus'],
-                'perijinan_pks':   ['lihat', 'edit', 'hapus'],
-                'elibrary':        ['lihat', 'edit', 'hapus'],
+                'dashboard': ['view'], 'regulasi': ['lihat', 'edit', 'hapus'],
+                'perijinan_pks': ['lihat', 'edit', 'hapus'], 'elibrary': ['lihat', 'edit', 'hapus'],
                 'dokumen_lainnya': ['lihat', 'edit', 'hapus'],
-                'ratifikasi':      ['lihat', 'distribusi'],
-                'master_data':     [],
+                'ratifikasi': ['lihat', 'distribusi'], 'master_data': [],
             },
-
-            # ── MANAJEMEN ────────────────────────────────────────────────
+            # MANAJEMEN
             'Manajer Bidang': {
-                'dashboard':       ['view'],
-                'regulasi':        ['lihat', 'edit', 'hapus'],
-                'perijinan_pks':   ['lihat', 'edit', 'hapus'],
-                'elibrary':        ['lihat', 'edit', 'hapus'],
+                'dashboard': ['view'], 'regulasi': ['lihat', 'edit', 'hapus'],
+                'perijinan_pks': ['lihat', 'edit', 'hapus'], 'elibrary': ['lihat', 'edit', 'hapus'],
                 'dokumen_lainnya': ['lihat', 'edit', 'hapus'],
-                'ratifikasi':      ['lihat', 'approve_t1'],
-                'master_data':     ['lihat', 'tambah', 'edit', 'hapus'],
+                'ratifikasi': ['lihat', 'approve_t1'],
+                'master_data': ['lihat', 'tambah', 'edit', 'hapus'],
             },
-            # Alias lama — akun yang sudah pakai 'Managemen' tetap berfungsi
             'Managemen': {
-                'dashboard':       ['view'],
-                'regulasi':        ['lihat', 'edit', 'hapus'],
-                'perijinan_pks':   ['lihat', 'edit', 'hapus'],
-                'elibrary':        ['lihat', 'edit', 'hapus'],
+                'dashboard': ['view'], 'regulasi': ['lihat', 'edit', 'hapus'],
+                'perijinan_pks': ['lihat', 'edit', 'hapus'], 'elibrary': ['lihat', 'edit', 'hapus'],
                 'dokumen_lainnya': ['lihat', 'edit', 'hapus'],
-                'ratifikasi':      ['lihat', 'approve_t1'],
-                'master_data':     ['lihat', 'tambah', 'edit', 'hapus'],
+                'ratifikasi': ['lihat', 'approve_t1'],
+                'master_data': ['lihat', 'tambah', 'edit', 'hapus'],
             },
-
-            # ── UNIT ─────────────────────────────────────────────────────
+            # UNIT
             'Kepala Unit': self._unit_access(),
-
-            # ── IT / ADMIN ───────────────────────────────────────────────
+            # IT/ADMIN
             'Admin': self._admin_access(),
             'IT':    self._admin_access(),
-
-            # ── STAF OPERASIONAL ─────────────────────────────────────────
-            'Bidan':                      self._staff_access(),
-            'Casemix':                    self._staff_access(),
-            'CSSU':                       self._staff_access(),
-            'Dokter Spesialis':           self._staff_access(),
-            'Dokter Umum':                self._staff_access(),
-            'Farmasi':                    self._staff_access(),
-            'Fisioterapi/KTK':            self._staff_access(),
-            'Front Office dan SFE':       self._staff_access(),
+            # STAF
+            'Bidan': self._staff_access(),
+            'Casemix': self._staff_access(),
+            'CSSU': self._staff_access(),
+            'Dokter Spesialis': self._staff_access(),
+            'Dokter Umum': self._staff_access(),
+            'Farmasi': self._staff_access(),
+            'Fisioterapi/KTK': self._staff_access(),
+            'Front Office dan SFE': self._staff_access(),
             'Gizi dan Tataboga (Pantry)': self._staff_access(),
-            'HRD':                        self._staff_access(),
-            'Jangum':                     self._staff_access(),
-            'Kasir':                      self._staff_access(),
-            'Kesling':                    self._staff_access(),
-            'Keuangan':                   self._staff_access(),
-            'Laboratorium':               self._staff_access(),
-            'Laundry':                    self._staff_access(),
-            'Marketing':                  self._staff_access(),
-            'Perawat':                    self._staff_access(),
-            'Radiologi':                  self._staff_access(),
-            'Rekam Medis':                self._staff_access(),
+            'HRD': self._staff_access(),
+            'Jangum': self._staff_access(),
+            'Kasir': self._staff_access(),
+            'Kesling': self._staff_access(),
+            'Keuangan': self._staff_access(),
+            'Laboratorium': self._staff_access(),
+            'Laundry': self._staff_access(),
+            'Marketing': self._staff_access(),
+            'Perawat': self._staff_access(),
+            'Radiologi': self._staff_access(),
+            'Rekam Medis': self._staff_access(),
         }
 
-    # ── Permission presets ──────────────────────────────────────────────
-
     def _admin_access(self):
-        """Admin/IT — akses penuh termasuk master data, bisa distribusi."""
         return {
-            'dashboard':       ['view'],
-            'regulasi':        ['lihat', 'edit', 'hapus'],
-            'perijinan_pks':   ['lihat', 'edit', 'hapus'],
-            'elibrary':        ['lihat', 'edit', 'hapus'],
+            'dashboard': ['view'], 'regulasi': ['lihat', 'edit', 'hapus'],
+            'perijinan_pks': ['lihat', 'edit', 'hapus'], 'elibrary': ['lihat', 'edit', 'hapus'],
             'dokumen_lainnya': ['lihat', 'edit', 'hapus'],
-            'ratifikasi':      ['lihat', 'distribusi'],
-            'master_data':     ['lihat', 'tambah', 'edit', 'hapus'],
+            'ratifikasi': ['lihat', 'distribusi'],
+            'master_data': ['lihat', 'tambah', 'edit', 'hapus'],
         }
 
     def _unit_access(self):
-        """Kepala Unit — lihat saja di webapp, edit GDocs via Drive sharing."""
         return {
-            'dashboard':       ['view'],
-            'regulasi':        ['lihat'],
-            'perijinan_pks':   ['lihat'],
-            'elibrary':        ['lihat'],
-            'dokumen_lainnya': ['lihat'],
-            'ratifikasi':      ['lihat'],
-            'master_data':     [],
+            'dashboard': ['view'], 'regulasi': ['lihat'],
+            'perijinan_pks': ['lihat'], 'elibrary': ['lihat'],
+            'dokumen_lainnya': ['lihat'], 'ratifikasi': ['lihat'],
+            'master_data': [],
         }
 
     def _staff_access(self):
-        """Staf operasional — lihat saja semua modul."""
         return {
-            'dashboard':       ['view'],
-            'regulasi':        ['lihat'],
-            'perijinan_pks':   ['lihat'],
-            'elibrary':        ['lihat'],
-            'dokumen_lainnya': ['lihat'],
-            'ratifikasi':      ['lihat'],
-            'master_data':     [],
+            'dashboard': ['view'], 'regulasi': ['lihat'],
+            'perijinan_pks': ['lihat'], 'elibrary': ['lihat'],
+            'dokumen_lainnya': ['lihat'], 'ratifikasi': ['lihat'],
+            'master_data': [],
         }
-
-    # ── User data ───────────────────────────────────────────────────────
 
     @st.cache_data(ttl=600, show_spinner=False)
     def _get_users(_self):
-        """Get all users dengan caching 10 menit."""
         try:
             return _self.dm.get_users()
         except Exception as e:
-            st.error(f"❌ Error loading users: {str(e)}")
+            st.error(f"\u274c Error loading users: {str(e)}")
             return []
 
-    # ── Authentication ──────────────────────────────────────────────────
-
     def authenticate(self, user_id, password):
-        """
-        Authenticate user. Mendukung bcrypt ($2b$/$2a$) dan plain text.
-
-        Returns:
-            tuple: (user_dict, error_message)
-        """
         if not user_id or not password:
             return None, "User ID dan Password harus diisi"
-
         user_id  = user_id.strip()
         password = password.strip()
-
         users = self._get_users()
         if not users:
             return None, "Tidak dapat mengakses database users"
-
         user = next(
             (u for u in users
              if str(u.get('user_id', '')).strip().upper() == user_id.upper()),
@@ -224,10 +150,8 @@ class AuthManager:
         )
         if not user:
             return None, f"User ID {user_id} tidak ditemukan"
-
         if str(user.get('status', '')).strip().lower() != 'aktif':
             return None, "Akun tidak aktif. Hubungi IT"
-
         stored_pw = str(user.get('password', '')).strip()
         pw_ok = False
         if _BCRYPT_AVAILABLE and stored_pw.startswith(('$2b$', '$2a$')):
@@ -237,20 +161,11 @@ class AuthManager:
                 pw_ok = False
         else:
             pw_ok = (password == stored_pw)
-
         if not pw_ok:
             return None, "Password salah"
-
         return user, None
 
-    # ── Session ─────────────────────────────────────────────────────────
-
     def create_session(self, user):
-        """
-        Buat session. Support multi-role: kolom 'role' di tb_users
-        bisa diisi lebih dari satu role dipisah koma.
-        Permission = union dari semua role yang dimiliki.
-        """
         st.session_state['authenticated'] = True
         st.session_state['user_id']       = str(user.get('user_id', ''))
         st.session_state['username']      = str(user.get('username', ''))
@@ -261,11 +176,9 @@ class AuthManager:
         st.session_state['no_hp']         = str(user.get('no_hp', ''))
         st.session_state['login_time']    = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-        # Parse multi-role dari kolom role (dipisah koma)
         raw_role = st.session_state['role']
         roles    = [r.strip() for r in raw_role.split(',') if r.strip()]
 
-        # Gabungkan permission semua role (union)
         merged = {}
         for role in roles:
             perms = self.PERMISSIONS.get(role)
@@ -276,7 +189,6 @@ class AuthManager:
                         break
             if perms is None:
                 continue
-
             for module, actions in perms.items():
                 if module not in merged:
                     merged[module] = set()
@@ -284,16 +196,12 @@ class AuthManager:
 
         merged = {mod: list(acts) for mod, acts in merged.items()}
 
-        # Fallback minimal jika tidak ada role dikenal
         if not merged:
             merged = {
-                'dashboard':       ['view'],
-                'regulasi':        ['lihat'],
-                'perijinan_pks':   ['lihat'],
-                'elibrary':        ['lihat'],
-                'dokumen_lainnya': ['lihat'],
-                'ratifikasi':      ['lihat'],
-                'master_data':     [],
+                'dashboard': ['view'], 'regulasi': ['lihat'],
+                'perijinan_pks': ['lihat'], 'elibrary': ['lihat'],
+                'dokumen_lainnya': ['lihat'], 'ratifikasi': ['lihat'],
+                'master_data': [],
             }
 
         st.session_state['permissions']  = merged
@@ -307,8 +215,6 @@ class AuthManager:
             'permissions', 'role_matched',
         ]:
             st.session_state.pop(key, None)
-
-    # ── Helpers ─────────────────────────────────────────────────────────
 
     def is_authenticated(self):
         return st.session_state.get('authenticated', False)
@@ -329,12 +235,6 @@ class AuthManager:
         }
 
     def has_permission(self, module, action):
-        """
-        Cek izin untuk action di modul tertentu.
-
-        Action standar : view, lihat, edit, hapus, tambah
-        Action ratifikasi: approve_t1, approve_t2, distribusi
-        """
         if not self.is_authenticated():
             return False
         perms = st.session_state.get('permissions', {})
@@ -344,7 +244,7 @@ class AuthManager:
         if self.has_permission(module, action):
             return True
         if show_error:
-            st.error(f"⛔ Anda tidak memiliki akses **{action}** di menu **{module}**")
+            st.error(f"\u26d4 Anda tidak memiliki akses **{action}** di menu **{module}**")
             roles = st.session_state.get('roles', [st.session_state.get('role', '')])
             st.info(f"Role Anda: **{', '.join(roles)}**")
         return False
@@ -363,8 +263,6 @@ class AuthManager:
         except Exception:
             return "Unknown"
 
-
-# ── Singleton factory ───────────────────────────────────────────────────
 
 def get_auth_manager(drive_manager):
     if 'auth_manager' not in st.session_state:

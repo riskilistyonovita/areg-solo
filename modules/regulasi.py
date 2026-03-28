@@ -1082,7 +1082,7 @@ def _build_select_opts(df, name_col, id_col):
 
 
 def _parse_date(s):
-    for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y', '%d-%b-%Y', '%d %b %Y', '%-d-%b-%Y'):
+    for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y', '%d-%b-%Y', '%d %b %Y'):
         try:
             return datetime.strptime(s.strip(), fmt).date()
         except:

@@ -67,23 +67,20 @@ def show():
     st.title("✍️ Ratifikasi Regulasi")
     st.markdown("---")
 
-    # ── Tentukan tab berdasarkan permission ──────────────────────────
-    # Semua yang bisa buka Ratifikasi → Daftar Proses selalu tampil
+    # Tab berdasarkan permission
     tabs_def = [("📋 Daftar Proses", _tab_daftar, None)]
 
-    # Upload Draft → Tim Regulasi (punya approve_t2 atau distribusi)
-    if auth.has_permission('ratifikasi', 'approve_t2') or        auth.has_permission('ratifikasi', 'distribusi'):
+    if auth.has_permission('ratifikasi', 'approve_t2') or \
+       auth.has_permission('ratifikasi', 'distribusi'):
         tabs_def.append(("📤 Upload Draft", _tab_upload_draft, None))
 
-    # Proses Approval → Manajer Bidang (T1) atau Tim Regulasi (T2)
-    if auth.has_permission('ratifikasi', 'approve_t1') or        auth.has_permission('ratifikasi', 'approve_t2'):
+    if auth.has_permission('ratifikasi', 'approve_t1') or \
+       auth.has_permission('ratifikasi', 'approve_t2'):
         tabs_def.append(("✅ Proses Approval", _tab_proses_approval, role))
 
-    # Distribusi → punya aksi distribusi
     if auth.has_permission('ratifikasi', 'distribusi'):
         tabs_def.append(("📬 Distribusi", _tab_distribusi, None))
 
-    # Folder Manager → hanya Tim Regulasi & Admin/IT (punya distribusi)
     if auth.has_permission('ratifikasi', 'distribusi'):
         tabs_def.append(("📁 Folder", _tab_folder_manager, None))
 

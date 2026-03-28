@@ -378,41 +378,33 @@ def _tab_subkategori(dm):
 # ========== TAB PENGGUNA ==========
 
 def _tab_pengguna(dm, auth):
-    import re
-
+    import re as _re
     st.subheader("Manajemen Pengguna")
 
-    # Guard: hanya Sekretaris Tim Regulasi dan Admin/IT
     if not auth.has_permission('master_data', 'tambah'):
-        st.warning("⛔ Anda tidak memiliki akses untuk mengelola pengguna.")
+        st.warning("\u26d4 Anda tidak memiliki akses untuk mengelola pengguna.")
         return
 
     with st.spinner("Memuat data..."):
         users = dm.get_users() or []
         roles_data = dm.get_roles() or []
 
-    # Daftar nama_role dari tb_roles
     role_list = [r.get('nama_role', '') for r in roles_data if r.get('nama_role')]
-
     df_users = pd.DataFrame(users).fillna('') if users else pd.DataFrame()
 
-    # ── Metrik ──────────────────────────────────────────────────────
     if not df_users.empty:
         total  = len(df_users)
-        aktif  = len(df_users[df_users.get('status', pd.Series(dtype=str)).str.lower() == 'aktif'])                  if 'status' in df_users.columns else total
+        aktif  = len(df_users[df_users.get('status', pd.Series(dtype=str)).str.lower() == 'aktif']) if 'status' in df_users.columns else total
         col_a, col_b, col_c = st.columns(3)
         col_a.metric("Total Pengguna", total)
         col_b.metric("Aktif", aktif)
         col_c.metric("Nonaktif", total - aktif)
         st.markdown("")
 
-    # ── Tabel user ──────────────────────────────────────────────────
     col_tbl, col_form = st.columns([3, 2])
 
     with col_tbl:
         st.markdown("**Daftar Pengguna**")
-
-        # Filter
         f1, f2 = st.columns(2)
         with f1:
             kw = st.text_input("Cari nama / user ID...", key="usr_kw")
@@ -429,16 +421,11 @@ def _tab_pengguna(dm, auth):
                 df_show = df_show[mask]
             if filter_status != "Semua":
                 df_show = df_show[df_show.get('status', pd.Series(dtype=str)).str.lower() == filter_status.lower()]
-
-            # Tampilkan kolom penting saja
-            show_cols = [c for c in ['user_id','nama_lengkap','role','unit_kerja','email','status']
-                         if c in df_show.columns]
-            st.dataframe(df_show[show_cols] if show_cols else df_show,
-                         use_container_width=True, hide_index=True)
+            show_cols = [c for c in ['user_id','nama_lengkap','role','unit_kerja','email','status'] if c in df_show.columns]
+            st.dataframe(df_show[show_cols] if show_cols else df_show, use_container_width=True, hide_index=True)
         else:
             st.info("Belum ada data pengguna.")
 
-        # ── Aksi cepat: nonaktif / reset password ──────────────────
         st.markdown("---")
         st.markdown("**Aksi Cepat**")
         uid_list = df_users['user_id'].tolist() if not df_users.empty and 'user_id' in df_users.columns else []
@@ -454,7 +441,7 @@ def _tab_pengguna(dm, auth):
                 else:
                     ok = dm.update_user_field(sel_uid_status, 'status', new_status)
                     if ok:
-                        st.success(f"Status {sel_uid_status} → {new_status}")
+                        st.success(f"Status {sel_uid_status} \u2192 {new_status}")
                         st.cache_data.clear(); st.rerun()
                     else:
                         st.error("Gagal mengubah status.")
@@ -473,36 +460,22 @@ def _tab_pengguna(dm, auth):
                     else:
                         st.error("Gagal reset password.")
 
-    # ── Form tambah user baru ───────────────────────────────────────
     with col_form:
         st.markdown("**Tambah Pengguna Baru**")
-
-        # Generate user_id otomatis (9 digit angka berurutan)
         if not df_users.empty and 'user_id' in df_users.columns:
-            existing_ids = [int(v) for v in df_users['user_id'].astype(str)
-                           if re.match(r'^\d{9}$', v.strip())]
+            existing_ids = [int(v) for v in df_users['user_id'].astype(str) if _re.match(r'^\d{9}$', v.strip())]
             new_uid = str(max(existing_ids) + 1).zfill(9) if existing_ids else "000000001"
         else:
             new_uid = "000000001"
 
         st.text_input("User ID (otomatis)", value=new_uid, disabled=True, key="usr_id_show")
         nama_lengkap = st.text_input("Nama Lengkap *", key="usr_nama")
-        username     = st.text_input("Username", key="usr_uname",
-                                     placeholder="Opsional, untuk display")
+        username     = st.text_input("Username", key="usr_uname", placeholder="Opsional")
         email        = st.text_input("Email", key="usr_email")
         no_hp        = st.text_input("No HP", key="usr_nohp")
-
-        # Multi-role: multiselect dari tb_roles
-        sel_roles = st.multiselect(
-            "Role * (bisa lebih dari satu)",
-            options=role_list,
-            key="usr_roles"
-        )
-
-        unit_kerja = st.text_input("Unit Kerja", key="usr_unit")
-        password   = st.text_input("Password *", type="password", key="usr_pw")
-
-        st.caption("Password bisa berupa teks biasa. Akan di-hash saat login pertama kali.")
+        sel_roles    = st.multiselect("Role * (bisa lebih dari satu)", options=role_list, key="usr_roles")
+        unit_kerja   = st.text_input("Unit Kerja", key="usr_unit")
+        password     = st.text_input("Password *", type="password", key="usr_pw")
 
         if st.button("Tambah Pengguna", type="primary", key="btn_add_user"):
             if not nama_lengkap.strip():
@@ -512,22 +485,21 @@ def _tab_pengguna(dm, auth):
             elif not password.strip():
                 st.error("Password wajib diisi!")
             else:
-                role_str = ",".join(sel_roles)
                 data = {
-                    'user_id':      new_uid,
-                    'username':     username.strip() or nama_lengkap.strip().split()[0].lower(),
+                    'user_id': new_uid,
+                    'username': username.strip() or nama_lengkap.strip().split()[0].lower(),
                     'nama_lengkap': nama_lengkap.strip(),
-                    'role':         role_str,
-                    'unit_kerja':   unit_kerja.strip(),
-                    'email':        email.strip(),
-                    'no_hp':        no_hp.strip(),
-                    'password':     password.strip(),
-                    'status':       'aktif',
+                    'role': ",".join(sel_roles),
+                    'unit_kerja': unit_kerja.strip(),
+                    'email': email.strip(),
+                    'no_hp': no_hp.strip(),
+                    'password': password.strip(),
+                    'status': 'aktif',
                 }
                 with st.spinner("Menyimpan..."):
                     ok = dm.add_user(data)
                 if ok:
-                    st.success(f"Pengguna '{nama_lengkap}' berhasil ditambahkan! (ID: {new_uid})")
+                    st.success(f"Pengguna '{nama_lengkap}' berhasil ditambahkan!")
                     st.cache_data.clear(); st.rerun()
                 else:
                     st.error("Gagal menyimpan pengguna.")
